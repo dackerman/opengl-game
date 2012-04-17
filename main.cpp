@@ -5,16 +5,18 @@
  *      Author: "David Ackerman (david.w.ackerman@gmail.com)"
  */
 
-#include "GL/glew.h"
-#include "GL/glfw.h"
+#include <GL/glew.h>
+#include <GL/glfw.h>
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
+
+using namespace std;
 
 int openWindow(int width, int height) {
-
 	if (!glfwInit()) {
-		printf("Init failed!");
+		cerr << "Init failed!" << endl;
 		return 0;
 	}
 
@@ -28,6 +30,14 @@ int openWindow(int width, int height) {
 		return 0;
 	}
 	glfwSetWindowTitle("My winda");
+
+	int err = glewInit();
+	const char* errorString = (char*) glewGetErrorString(err);
+	if (GLEW_OK != err) {
+		cerr << errorString << endl;
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -37,7 +47,7 @@ int compileShader(GLenum shaderType, const char* sourceCode) {
 	GLuint shader = glCreateShader(shaderType);
 
 	if (!shader) {
-		printf("Couldn't create shader");
+		cerr << "Couldn't create shader" << endl;
 		return 0;
 	}
 
@@ -75,12 +85,13 @@ int update() {
 
 int main(int argc, char* argv[]) {
 	if (!openWindow(640, 480)) {
-		printf("Couldn't open window!");
+		cerr << "Couldn't open window!";
 		return 1;
 	}
-	printf("Opened winda!");
-
-	GLfloat points[] = { -0.5f, 0.0f, 0.0f, 1.0f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 0.0f, 1.0f };
+	GLfloat points[] = {
+			0.0f, 0.5f, 0.0f,
+			-0.5f, -0.5f, 0.0f,
+			0.5f, -0.5f, 0.0f};
 
 	const GLchar vShaderStr[] =
 			"attribute vec4 vPosition; \n"
@@ -89,20 +100,30 @@ int main(int argc, char* argv[]) {
 			"}\n";
 
 	const GLchar fShaderStr[] =
-			"precision mediump float; \n"
+			"#version 330 \n"
+			"layout(location = 0, index = 0) out vec4 fragColor; \n"
 			"void main() {\n"
-			"gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); \n"
-			"}\n";
+			"fragColor = vec4(1.0, 0.0, 0.0, 1.0); \n"
+			"} \n";
 
 	GLint linked;
 
 	GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vShaderStr);
+	if (!vertexShader) {
+		cerr << "Couldn't build vertex shader" << endl;
+		return 1;
+	}
+
 	GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fShaderStr);
+	if (!fragmentShader) {
+		cerr << "Couldn't build fragment shader" << endl;
+		return 1;
+	}
 
 	GLuint programObject = glCreateProgram();
 
 	if (!programObject) {
-		printf("Program couldn't be created\n");
+		cerr << "Program couldn't be created" << endl;
 		return 0;
 	}
 
@@ -116,13 +137,18 @@ int main(int argc, char* argv[]) {
 	glGetProgramiv(programObject, GL_LINK_STATUS, &linked);
 
 	if (!linked) {
-		printf("Not linked!\n");
+		cerr << "Not linked!" << endl;
 		glDeleteProgram(programObject);
 		return 0;
 	}
 
+	cerr << "Done";
+
 	int running = 1;
+	glClearColor(0.5f, 0.0f, 0.0f, 1.0f);
 	while (running) {
+		glViewport(0, 0, 640, 480);
+
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		glUseProgram(programObject);

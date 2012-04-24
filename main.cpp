@@ -11,6 +11,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <sstream>
 
 using namespace std;
 
@@ -83,15 +87,60 @@ int update() {
 	return 1;
 }
 
-int main(int argc, char* argv[]) {
+std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
+    std::stringstream ss(s);
+    std::string item;
+    while(std::getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+    return elems;
+}
+
+std::vector<std::string> split(const std::string &s, char delim) {
+    std::vector<std::string> elems;
+    return split(s, delim, elems);
+}
+
+typedef struct {
+	std::vector<float> vertices;
+	std::vector<int> faces;
+} mesh;
+
+void readObjFile(const char* filename, mesh * outmesh) {
+	ifstream file;
+	file.open(filename, fstream::in);
+	if (!file) {
+		cerr << "Couldn't open file!" << endl;
+		exit(1);
+	}
+
+	string lineread;
+	while (std::getline(file, lineread)) {
+		std::vector<std::string> sline = split(lineread, ' ');
+		if ("v" == sline[0]) {
+			float x = atof(sline[1].c_str());
+			float y = atof(sline[2].c_str());
+			float z = atof(sline[3].c_str());
+			outmesh->vertices.push_back(x);
+			outmesh->vertices.push_back(y);
+			outmesh->vertices.push_back(z);
+		} else if ("f" == sline[0]) {
+			int vx = atoi(sline[1].c_str());
+			int vy = atoi(sline[2].c_str());
+			int vz = atoi(sline[3].c_str());
+			outmesh->faces.push_back(vx);
+			outmesh->faces.push_back(vy);
+			outmesh->faces.push_back(vz);
+		}
+	}
+	file.close();
+}
+
+int renderMain(mesh * renderMesh) {
 	if (!openWindow(640, 480)) {
 		cerr << "Couldn't open window!";
 		return 1;
 	}
-	GLfloat points[] = {
-			0.0f, 0.5f, 0.0f,
-			-0.5f, -0.5f, 0.0f,
-			0.5f, -0.5f, 0.0f};
 
 	const GLchar vShaderStr[] =
 			"attribute vec4 vPosition; \n"
@@ -100,10 +149,9 @@ int main(int argc, char* argv[]) {
 			"}\n";
 
 	const GLchar fShaderStr[] =
-			"#version 330 \n"
-			"layout(location = 0, index = 0) out vec4 fragColor; \n"
+			"precision mediump float; \n"
 			"void main() {\n"
-			"fragColor = vec4(1.0, 0.0, 0.0, 1.0); \n"
+			"gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); \n"
 			"} \n";
 
 	GLint linked;
@@ -142,24 +190,33 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-	cerr << "Done";
-
+	glClearColor(1.0f, 1.0f, 0.0f, 1.0f);
 	int running = 1;
-	glClearColor(0.5f, 0.0f, 0.0f, 1.0f);
+	cout << "Starting game loop" << endl;
 	while (running) {
 		glViewport(0, 0, 640, 480);
 
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		glUseProgram(programObject);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, points);
+		glDisable(GL_CULL_FACE);
 		glEnableVertexAttribArray(0);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, renderMesh->vertices.data());
+		glDrawElements(GL_TRIANGLES, renderMesh->faces.size(), GL_UNSIGNED_BYTE, renderMesh->faces.data());
 
 		glfwSwapBuffers();
 
 		running = !glfwGetKey(GLFW_KEY_ESC);
 	}
+	cout << "Exited game loop" << endl;
 	glfwTerminate();
 	return 0;
+}
+
+int main(int argc, char* argv[]) {
+	mesh mymesh;
+	readObjFile("../assets/duck-tris.obj", &mymesh);
+	cout << "vertices length is " << mymesh.vertices.size() << endl;
+	cout << "faces    length is " << mymesh.faces.size() << endl;
+	renderMain(&mymesh);
 }

@@ -4,14 +4,17 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
+../ShaderProgram.cpp \
 ../main.cpp \
 ../shader.cpp 
 
 OBJS += \
+./ShaderProgram.o \
 ./main.o \
 ./shader.o 
 
 CPP_DEPS += \
+./ShaderProgram.d \
 ./main.d \
 ./shader.d 
 

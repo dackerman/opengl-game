@@ -22,6 +22,7 @@
 #include <sstream>
 
 #include "shader.hpp"
+#include "ShaderProgram.hpp"
 
 using namespace std;
 
@@ -114,35 +115,33 @@ int renderMain(mesh * renderMesh) {
 		return 1;
 	}
 
-	GLint linked;
-
 	Shader * vertexShader = new Shader(GL_VERTEX_SHADER, "../assets/shaders/simple.vert");
-	vertexShader->compile();
-
 	Shader * fragmentShader = new Shader(GL_FRAGMENT_SHADER, "../assets/shaders/simple.frag");
-	fragmentShader->compile();
 
-	GLuint programObject = glCreateProgram();
+	ShaderProgram * program = new ShaderProgram(vertexShader, fragmentShader);
+	program->link();
 
-	if (!programObject) {
-		cerr << "Program couldn't be created" << endl;
-		return 0;
-	}
-
-	glAttachShader(programObject, vertexShader->id());
-	glAttachShader(programObject, fragmentShader->id());
-
-	glBindAttribLocation(programObject, 0, "vPosition");
-
-	glLinkProgram(programObject);
-
-	glGetProgramiv(programObject, GL_LINK_STATUS, &linked);
-
-	if (!linked) {
-		cerr << "Not linked!" << endl;
-		glDeleteProgram(programObject);
-		return 0;
-	}
+//	GLuint programObject = glCreateProgram();
+//
+//	if (!programObject) {
+//		cerr << "Program couldn't be created" << endl;
+//		return 0;
+//	}
+//
+//	glAttachShader(programObject, vertexShader->id());
+//	glAttachShader(programObject, fragmentShader->id());
+//
+//	glBindAttribLocation(programObject, 0, "vPosition");
+//
+//	glLinkProgram(programObject);
+//
+//	glGetProgramiv(programObject, GL_LINK_STATUS, &linked);
+//
+//	if (!linked) {
+//		cerr << "Not linked!" << endl;
+//		glDeleteProgram(programObject);
+//		return 0;
+//	}
 
 	int running = 1;
 	cout << "Starting game loop" << endl;
@@ -179,9 +178,8 @@ int renderMain(mesh * renderMesh) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glClearColor(0.3f, 1.0f, 0.3f, 1.0f);
 
-		glUseProgram(programObject);
-		int modelViewMatrixLocation = glGetUniformLocation(programObject, "modelViewMatrix");
-		glUniformMatrix4fv(modelViewMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelViewMatrix));
+		program->activate();
+		program->setMatrixValue("modelViewMatrix", modelViewMatrix);
 
 		glDrawElements(GL_TRIANGLES, renderMesh->faces.size(), GL_UNSIGNED_INT, 0);
 

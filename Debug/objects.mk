@@ -4,5 +4,5 @@
 
 USER_OBJS :=
 
-LIBS := -lGLEW -lGL -lglfw
+LIBS := -lGLEW -lGLU -lGL -lglfw
 

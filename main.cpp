@@ -8,6 +8,11 @@
 #include <GL/glew.h>
 #include <GL/glfw.h>
 
+// GLM Matrix calculations
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
@@ -15,6 +20,8 @@
 #include <vector>
 #include <string>
 #include <sstream>
+
+#include "shader.hpp"
 
 using namespace std;
 
@@ -26,7 +33,6 @@ int openWindow(int width, int height) {
 
 	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
 	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 2);
-	glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, 1);
 
 	glfwSetWindowTitle("");
 	if (!glfwOpenWindow(width, height, 8, 8, 8, 8, 8, 0, GLFW_WINDOW)) {
@@ -42,48 +48,6 @@ int openWindow(int width, int height) {
 		return 0;
 	}
 
-	return 1;
-}
-
-int compileShader(GLenum shaderType, const char* sourceCode) {
-	GLint compiled;
-
-	GLuint shader = glCreateShader(shaderType);
-
-	if (!shader) {
-		cerr << "Couldn't create shader" << endl;
-		return 0;
-	}
-
-	glShaderSource(shader, 1, &sourceCode, NULL);
-
-	glCompileShader(shader);
-
-	glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-
-	if (!compiled) {
-		GLint infoLen = 0;
-
-		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
-
-		if (infoLen > 1) {
-			char* infoLog = (char*) malloc(sizeof(char) * infoLen);
-
-			glGetShaderInfoLog(shader, infoLen, NULL, infoLog);
-
-			printf("Error compiling shader:\n%s\n", infoLog);
-
-			free(infoLog);
-		}
-
-		glDeleteShader(shader);
-		return 0;
-	}
-
-	return 1;
-}
-
-int update() {
 	return 1;
 }
 
@@ -103,7 +67,7 @@ std::vector<std::string> split(const std::string &s, char delim) {
 
 typedef struct {
 	std::vector<float> vertices;
-	std::vector<int> faces;
+	std::vector<unsigned int> faces;
 } mesh;
 
 void readObjFile(const char* filename, mesh * outmesh) {
@@ -136,37 +100,27 @@ void readObjFile(const char* filename, mesh * outmesh) {
 	file.close();
 }
 
+void reshape(int w, int h) {
+	glViewport(0, 0, w, h);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glm::mat4 projectionMatrix;
+	gluPerspective(45.0f, (float)w / (float)h, 1.0f, 500.0f);
+}
+
 int renderMain(mesh * renderMesh) {
 	if (!openWindow(640, 480)) {
 		cerr << "Couldn't open window!";
 		return 1;
 	}
 
-	const GLchar vShaderStr[] =
-			"attribute vec4 vPosition; \n"
-			"void main() {\n"
-			"gl_Position = vPosition; \n"
-			"}\n";
-
-	const GLchar fShaderStr[] =
-			"precision mediump float; \n"
-			"void main() {\n"
-			"gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); \n"
-			"} \n";
-
 	GLint linked;
 
-	GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vShaderStr);
-	if (!vertexShader) {
-		cerr << "Couldn't build vertex shader" << endl;
-		return 1;
-	}
+	Shader * vertexShader = new Shader(GL_VERTEX_SHADER, "../assets/shaders/simple.vert");
+	vertexShader->compile();
 
-	GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fShaderStr);
-	if (!fragmentShader) {
-		cerr << "Couldn't build fragment shader" << endl;
-		return 1;
-	}
+	Shader * fragmentShader = new Shader(GL_FRAGMENT_SHADER, "../assets/shaders/simple.frag");
+	fragmentShader->compile();
 
 	GLuint programObject = glCreateProgram();
 
@@ -175,8 +129,8 @@ int renderMain(mesh * renderMesh) {
 		return 0;
 	}
 
-	glAttachShader(programObject, vertexShader);
-	glAttachShader(programObject, fragmentShader);
+	glAttachShader(programObject, vertexShader->id());
+	glAttachShader(programObject, fragmentShader->id());
 
 	glBindAttribLocation(programObject, 0, "vPosition");
 
@@ -190,32 +144,113 @@ int renderMain(mesh * renderMesh) {
 		return 0;
 	}
 
-	glClearColor(1.0f, 1.0f, 0.0f, 1.0f);
 	int running = 1;
 	cout << "Starting game loop" << endl;
-	while (running) {
-		glViewport(0, 0, 640, 480);
 
-		glClear(GL_COLOR_BUFFER_BIT);
+	// Vertex Buffer Objects
+	GLuint pointsVBO;
+	glGenBuffers(1, &pointsVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, pointsVBO);
+	glBufferData(GL_ARRAY_BUFFER, renderMesh->vertices.size() * sizeof(float), renderMesh->vertices.data(), GL_STATIC_DRAW);
+
+	GLuint indicesVBO;
+	glGenBuffers(1, &indicesVBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, renderMesh->faces.size() * sizeof(int), renderMesh->faces.data(), GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, pointsVBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
+	// Vertex Buffer Objects
+
+	// View Matrix Calculations
+	int w = 640;
+	int h = 480;
+	glm::mat4 projectionMatrix = glm::perspective(45.0f, (float)w / (float) h, 0.1f, 100.0f);
+	glm::mat4 viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
+	glm::mat4 modelMatrix = glm::mat4(1.0f);//glm::rotate(glm::mat4(1.0f), 45.0f, glm::vec3(1.0f, 1.0f, 1.0f));
+	glm::mat4 modelViewMatrix;
+	// View Matrix Calculations
+
+	while (running) {
+		modelViewMatrix = projectionMatrix * viewMatrix * modelMatrix;
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClearColor(0.3f, 1.0f, 0.3f, 1.0f);
 
 		glUseProgram(programObject);
-		glDisable(GL_CULL_FACE);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, renderMesh->vertices.data());
-		glDrawElements(GL_TRIANGLES, renderMesh->faces.size(), GL_UNSIGNED_BYTE, renderMesh->faces.data());
+		int modelViewMatrixLocation = glGetUniformLocation(programObject, "modelViewMatrix");
+		glUniformMatrix4fv(modelViewMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelViewMatrix));
+
+		glDrawElements(GL_TRIANGLES, renderMesh->faces.size(), GL_UNSIGNED_INT, 0);
+
+		glGetError();
 
 		glfwSwapBuffers();
 
 		running = !glfwGetKey(GLFW_KEY_ESC);
+
+		if (glfwGetKey(GLFW_KEY_UP)) {
+			viewMatrix = glm::translate(viewMatrix, glm::vec3(0.f, 0.01f, 0.0f));
+		}
+		if (glfwGetKey(GLFW_KEY_DOWN)) {
+			viewMatrix = glm::translate(viewMatrix, glm::vec3(0.f, -0.01f, 0.0f));
+		}
+		if (glfwGetKey(GLFW_KEY_LEFT)) {
+			viewMatrix = glm::translate(viewMatrix, glm::vec3(-0.01f, 0.0f, 0.0f));
+		}
+		if (glfwGetKey(GLFW_KEY_RIGHT)) {
+			viewMatrix = glm::translate(viewMatrix, glm::vec3(0.01f, 0.0f, 0.0f));
+		}
+
 	}
 	cout << "Exited game loop" << endl;
 	glfwTerminate();
 	return 0;
 }
 
+mesh buildCube() {
+	const GLfloat vertices[] = {
+			0.0f, 0.0f, 0.0f,
+			1.0f, 0.0f, 0.0f,
+			1.0f, 1.0f, 0.0f,
+			0.0f, 1.0f, 0.0f,
+			0.0f, 0.0f, 1.0f,
+			1.0f, 0.0f, 1.0f,
+			1.0f, 1.0f, 1.0f,
+			0.0f, 1.0f, 1.0f,
+	};
+
+	GLuint indices[] = {
+			0, 1, 2,
+			2, 3, 0,
+
+			3, 2, 6,
+			6, 7, 3,
+
+			0, 3, 7,
+			7, 4, 0,
+
+			1, 6, 2,
+			1, 5, 6,
+
+			0, 4, 1,
+			1, 4, 5,
+
+			7, 6, 5,
+			5, 4, 7
+	};
+	mesh cubeMesh;
+	cubeMesh.vertices.assign(vertices, vertices + 24);
+	cubeMesh.faces.assign(indices, indices + 36);
+	return cubeMesh;
+}
+
 int main(int argc, char* argv[]) {
 	mesh mymesh;
 	readObjFile("../assets/duck-tris.obj", &mymesh);
+	//mesh mymesh = buildCube();
 	cout << "vertices length is " << mymesh.vertices.size() << endl;
 	cout << "faces    length is " << mymesh.faces.size() << endl;
 	renderMain(&mymesh);

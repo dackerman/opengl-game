@@ -1,1 +1,5 @@
 Basic usage of the OpenGL shader-based API. Mainly this project is to help me to get basic stuff working on my machine so I can start building real 3D applications.
+
+To install
+----------
+1. Download Open GL Mathematics (GLM) from http://sourceforge.net/projects/ogl-math/

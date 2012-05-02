@@ -37,6 +37,7 @@ void ShaderProgram::link() {
 	glAttachShader(programObject, fragmentShader->id());
 
 	glBindAttribLocation(programObject, 0, "vPosition");
+	glBindAttribLocation(programObject, 1, "vNormal");
 
 	glLinkProgram(programObject);
 
@@ -53,9 +54,24 @@ void ShaderProgram::activate() {
 	glUseProgram(this->id());
 }
 
-void ShaderProgram::setMatrixValue(const char * variableName, glm::mat4 matrix) {
-	int varLoc = glGetUniformLocation(this->id(), variableName);
-	glUniformMatrix4fv(varLoc, 1, GL_FALSE, glm::value_ptr(matrix));
+void ShaderProgram::setMatrix(const char * name, glm::mat4 matrix) {
+	glUniformMatrix4fv(this->loc(name), 1, GL_FALSE, glm::value_ptr(matrix));
+}
+
+void ShaderProgram::setVector(const char * name, glm::vec4 vec) {
+	glUniform4fv(this->loc(name), 1, glm::value_ptr(vec));
+}
+
+void ShaderProgram::setVector(const char * name, glm::vec3 vec) {
+	glUniform3fv(this->loc(name), 1, glm::value_ptr(vec));
+}
+
+void ShaderProgram::setFloat(const char * name, float fl) {
+	glUniform1f(this->loc(name), fl);
+}
+
+int ShaderProgram::loc(const char * name) {
+	return glGetUniformLocation(this->id(), name);
 }
 
 GLint ShaderProgram::id() {

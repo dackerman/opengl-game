@@ -17,7 +17,10 @@ public:
 	ShaderProgram(Shader * vertexShader, Shader * fragmentShader);
 	void link();
 	void activate();
-	void setMatrixValue(const char * variableName, glm::mat4 matrix);
+	void setMatrix(const char * variableName, glm::mat4 matrix);
+	void setVector(const char * variableName, glm::vec4 vec);
+	void setVector(const char * variableName, glm::vec3 vec);
+	void setFloat(const char * variableName, float fl);
 	GLint id();
 
 private:
@@ -25,6 +28,8 @@ private:
 	Shader * fragmentShader;
 
 	GLint programId;
+
+	int loc(const char * name);
 };
 
 

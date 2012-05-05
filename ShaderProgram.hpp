@@ -8,7 +8,7 @@
 #ifndef SHADERPROGRAM_HPP_
 #define SHADERPROGRAM_HPP_
 
-#include "shader.hpp"
+#include "Shader.hpp"
 
 #include <glm/glm.hpp>
 

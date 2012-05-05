@@ -5,7 +5,7 @@
  *      Author: "David Ackerman (david.w.ackerman@gmail.com)"
  */
 
-#include "shader.hpp"
+#include "Shader.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>

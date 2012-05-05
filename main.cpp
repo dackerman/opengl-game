@@ -15,21 +15,21 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdexcept>
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <string>
 #include <sstream>
 
-#include "shader.hpp"
+#include "Shader.hpp"
 #include "ShaderProgram.hpp"
 
 using namespace std;
 
-int openWindow(int width, int height) {
+void openWindow(int width, int height) {
 	if (!glfwInit()) {
-		cerr << "Init failed!" << endl;
-		return 0;
+		throw runtime_error("Init failed!");
 	}
 
 	glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
@@ -37,32 +37,29 @@ int openWindow(int width, int height) {
 
 	glfwSetWindowTitle("");
 	if (!glfwOpenWindow(width, height, 8, 8, 8, 8, 8, 0, GLFW_WINDOW)) {
-		printf("Couldn't open winda!");
-		return 0;
+		throw runtime_error("Couldn't init window!");
 	}
-	glfwSetWindowTitle("My winda");
+	glfwSetWindowTitle("Dackgl Game Engine v0.01");
 
 	int err = glewInit();
 	const char* errorString = (char*) glewGetErrorString(err);
 	if (GLEW_OK != err) {
-		cerr << errorString << endl;
-		return 0;
+		cerr << "couldn't init GLEW: "<< errorString << endl;
+		throw runtime_error("out of range");
 	}
-
-	return 1;
 }
 
-std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
-    std::stringstream ss(s);
-    std::string item;
-    while(std::getline(ss, item, delim)) {
+vector<string> &split(const string &s, char delim, vector<string> &elems) {
+    stringstream ss(s);
+    string item;
+    while(getline(ss, item, delim)) {
         elems.push_back(item);
     }
     return elems;
 }
 
-std::vector<std::string> split(const std::string &s, char delim) {
-    std::vector<std::string> elems;
+vector<string> split(const string &s, char delim) {
+    vector<string> elems;
     return split(s, delim, elems);
 }
 
@@ -91,24 +88,54 @@ struct material_props {
 };
 
 typedef struct {
-	std::vector<vertexnormal> vertices;
-	std::vector<float> normals;
-	std::vector<unsigned int> faces;
+	string name;
+	glm::mat4x3 inverseBindPose;
+	int8_t parent;
+} bone;
+
+typedef struct {
+	vector<vertexnormal> vertices;
+	vector<float> normals;
+	vector<unsigned int> faces;
+
+	vector<bone> bones;
 
 	material_props material;
 } mesh;
+
+void readDackFile(const char* filename, mesh * outmesh) {
+	ifstream file;
+	file.open(filename, fstream::in);
+	if (!file) {
+		throw runtime_error("Couldn't open file!");
+	}
+
+	string lineread;
+	while (getline(file, lineread)) {
+		vector<string> sline = split(lineread, ' ');
+		bone b;
+		b.name = sline[0];
+		glm::mat3 rest;
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 3; j++) {
+				rest[i][j] = atof(sline[i * 3 + j + 1].data());
+			}
+		}
+		//b.inverseBindPose = rest;
+		outmesh->bones.push_back(b);
+	}
+}
 
 void readObjFile(const char* filename, mesh * outmesh) {
 	ifstream file;
 	file.open(filename, fstream::in);
 	if (!file) {
-		cerr << "Couldn't open file!" << endl;
-		exit(1);
+		throw runtime_error("Couldn't open file!");
 	}
 
 	string lineread;
-	while (std::getline(file, lineread)) {
-		std::vector<std::string> sline = split(lineread, ' ');
+	while (getline(file, lineread)) {
+		vector<string> sline = split(lineread, ' ');
 		if ("vn" == sline[0]) {
 			float x = atof(sline[1].c_str());
 			float y = atof(sline[2].c_str());
@@ -123,9 +150,9 @@ void readObjFile(const char* filename, mesh * outmesh) {
 			struct vertexnormal vn = {x, y, z, 0.f, 0.f, 0.f};
 			outmesh->vertices.push_back(vn);
 		} else if ("f" == sline[0]) {
-			std::vector<std::string> sv1 = split(sline[1], '/');
-			std::vector<std::string> sv2 = split(sline[2], '/');
-			std::vector<std::string> sv3 = split(sline[3], '/');
+			vector<string> sv1 = split(sline[1], '/');
+			vector<string> sv2 = split(sline[2], '/');
+			vector<string> sv3 = split(sline[3], '/');
 
 			int v1 = atoi(sv1[0].c_str()) - 1;
 			int v2 = atoi(sv2[0].c_str()) - 1;
@@ -159,17 +186,12 @@ void readObjFile(const char* filename, mesh * outmesh) {
 	cout << "    faces:    " << outmesh->faces.size() << endl;
 }
 
-int renderMain(mesh * renderMesh) {
+void renderMain(mesh * renderMesh) {
 
 	directional_light light;
 	light.ambient_color = glm::vec4(0.5f);
 	light.diffuse_color = glm::vec4(0.5f);
 	light.specular_color = glm::vec4(0.5f);
-
-	if (!openWindow(640, 480)) {
-		cerr << "Couldn't open window!";
-		return 1;
-	}
 
 	Shader * vertexShader = new Shader(GL_VERTEX_SHADER, "../assets/shaders/lighted.vert");
 	Shader * fragmentShader = new Shader(GL_FRAGMENT_SHADER, "../assets/shaders/simple.frag");
@@ -178,7 +200,6 @@ int renderMain(mesh * renderMesh) {
 	program->link();
 
 	int running = 1;
-	cout << "Starting game loop" << endl;
 
 	// Vertex Buffer Objects
 	GLuint pointsVBO;
@@ -200,16 +221,13 @@ int renderMain(mesh * renderMesh) {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, renderMesh->faces.size() * sizeof(int), renderMesh->faces.data(), GL_STATIC_DRAW);
 
-	glBindBuffer(GL_ARRAY_BUFFER, pointsVBO); // TODO(dackerman): Do I need these?
-	glBindBuffer(GL_ARRAY_BUFFER, normalsVBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
 	// Vertex Buffer Objects
 
 	// View Matrix Calculations
 	int w = 640;
 	int h = 480;
 	glm::mat4 projectionMatrix = glm::perspective(45.0f, (float)w / (float) h, 0.1f, 100.0f);
-	glm::mat4 viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
+	glm::mat4 viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f));
 	glm::mat4 modelViewMatrix;
 	// View Matrix Calculations
 
@@ -285,72 +303,36 @@ int renderMain(mesh * renderMesh) {
 		}
 
 	}
-	cout << "Exited game loop" << endl;
 	glfwTerminate();
-	return 0;
 }
 
-mesh buildCube() {
-	const GLfloat vertices[] = {
-			0.0f, 0.0f, 0.0f,
-			1.0f, 0.0f, 0.0f,
-			1.0f, 1.0f, 0.0f,
-			0.0f, 1.0f, 0.0f,
-			0.0f, 0.0f, 1.0f,
-			1.0f, 0.0f, 1.0f,
-			1.0f, 1.0f, 1.0f,
-			0.0f, 1.0f, 1.0f,
-	};
-
-	GLuint indices[] = {
-			0, 1, 2,
-			2, 3, 0,
-
-			3, 2, 6,
-			6, 7, 3,
-
-			0, 3, 7,
-			7, 4, 0,
-
-			1, 6, 2,
-			1, 5, 6,
-
-			0, 4, 1,
-			1, 4, 5,
-
-			7, 6, 5,
-			5, 4, 7
-	};
-	mesh cubeMesh;
-	//cubeMesh.vertices.assign(vertices, vertices + 24);
-	cubeMesh.faces.assign(indices, indices + 36);
-	return cubeMesh;
+void printMatrix(glm::mat4x3 matrix) {
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			cout << matrix[i][j] << " ";
+		}
+		cout << endl;
+	}
 }
 
 int main(int argc, char* argv[]) {
 	mesh mymesh;
-	readObjFile("../assets/duck-low-norm3.obj", &mymesh);
+	readObjFile("../assets/ragdoll.obj", &mymesh);
+	readDackFile("../assets/ragdoll_bones.dack", &mymesh);
+
+	for (unsigned int i = 0; i < mymesh.bones.size(); i++) {
+		bone b = mymesh.bones[i];
+		cout << "bone: " << b.name << endl;
+		printMatrix(b.inverseBindPose);
+		cout << endl;
+	}
+
 	mymesh.material.ambient_color = glm::vec4(0.2f);
 	mymesh.material.diffuse_color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
 	mymesh.material.specular_color = glm::vec4(1.0f);
 	mymesh.material.specular_exponent = 2.0f;
 
-//	for (unsigned int i = 0; i < mymesh.vertices.size(); i++) {
-//		vertexnormal vn = mymesh.vertices[i];
-//		cout << vn.vx << "," << vn.vy << "," << vn.vz << " ";
-//		cout << vn.nx << "," << vn.ny << "," << vn.nz << endl;
-//	}
-//
-//	for (unsigned int i = 0; i < mymesh.faces.size(); i+=3) {
-//		for (int j = 0; j < 3; j++) {
-//			if (i + j >= mymesh.faces.size()) {
-//				cout << endl << "index out of bounds" << endl;
-//				exit(0);
-//			}
-//			cout << mymesh.faces[i + j] << " ";
-//		}
-//		cout << endl;
-//	}
+	openWindow(640, 480);
 
 	renderMain(&mymesh);
 }

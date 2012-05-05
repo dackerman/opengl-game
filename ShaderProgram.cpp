@@ -6,7 +6,7 @@
  */
 
 #include "ShaderProgram.hpp"
-#include "shader.hpp"
+#include "Shader.hpp"
 
 #include <GL/glew.h>
 #include <glm/glm.hpp>

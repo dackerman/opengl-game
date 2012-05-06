@@ -14,14 +14,14 @@
 
 using namespace std;
 
-
 class DackGLImporter {
 
 public:
-	DackGLImporter();
+	DackGLImporter(string baseDirectory);
 	mesh import(string filename);
 
 private:
+	string baseDirectory;
 	mesh model;
 
 	enum Mode { VERTEX, FACE, VERTEX_GROUP, BONE, UNKNOWN };

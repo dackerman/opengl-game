@@ -7,16 +7,17 @@
 
 class Shader {
 public:
-	Shader(GLenum shaderType, const char * source);
+	Shader(GLenum shaderType, std::string filename);
 	
-	void compile();
-
 	GLuint id();
+	std::string name();
+	void compile();
 
 private:
 	GLenum type;
-	const char * filename;
+	std::string filename;
 	GLuint compiledId;
+
 	const char * getShader(const char * src);
 };
 

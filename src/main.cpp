@@ -18,10 +18,14 @@
 
 #include "shader/Shader.hpp"
 #include "shader/ShaderProgram.hpp"
+#include "shader/Shaders.hpp"
 #include "DackGLImporter.hpp"
 #include "structs.hpp"
 
 using namespace std;
+using namespace dackgl;
+
+namespace dackgl {
 
 void openWindow(int width, int height) {
 	if (!glfwInit()) {
@@ -45,22 +49,18 @@ void openWindow(int width, int height) {
 	}
 }
 
-void renderMain(mesh * renderMesh) {
+void renderMain(mesh * renderMesh, ShaderProgram * program) {
 
 	directional_light light;
 	light.ambient_color = glm::vec4(0.5f);
 	light.diffuse_color = glm::vec4(0.5f);
 	light.specular_color = glm::vec4(0.5f);
 
-	Shader * vertexShader = new Shader(GL_VERTEX_SHADER, "../assets/shaders/lighted.vert");
-	Shader * fragmentShader = new Shader(GL_FRAGMENT_SHADER, "../assets/shaders/simple.frag");
-
-	ShaderProgram * program = new ShaderProgram(vertexShader, fragmentShader);
 	program->link();
 
 	int running = 1;
 
-	// Vertex Buffer Objects
+	// Vertex Buffer ObjectsGLint
 	GLuint pointsVBO;
 	glGenBuffers(1, &pointsVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, pointsVBO);
@@ -174,9 +174,11 @@ void printMatrix(glm::mat4x3 matrix) {
 	}
 }
 
+}
+
 int main(int argc, char* argv[]) {
-	DackGLImporter * importer = new DackGLImporter();
-	mesh mymesh = importer->import("../assets/ragdoll.dack");
+	DackGLImporter * importer = new DackGLImporter("../assets");
+	mesh mymesh = importer->import("ragdoll.dack");
 
 	mymesh.material.ambient_color = glm::vec4(0.2f);
 	mymesh.material.diffuse_color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
@@ -185,5 +187,9 @@ int main(int argc, char* argv[]) {
 
 	openWindow(640, 480);
 
-	renderMain(&mymesh);
+	loaders::Shaders * shaders = new loaders::Shaders("../assets/shaders");
+	ShaderProgram * program = shaders->getShader("lighted.vert", "simple.frag");
+
+	renderMain(&mymesh, program);
+	return 0;
 }

@@ -15,16 +15,19 @@
 
 using namespace std;
 
-Shader::Shader(GLenum shaderType, const char * filename) {
+Shader::Shader(GLenum shaderType, string filename) {
 	this->type = shaderType;
 	this->filename = filename;
 	this->compiledId = 0;
 }
 
 void Shader::compile() {
+	if (compiledId) {
+		return;
+	}
 	GLint compiled;
 
-	const char * source = this->getShader(this->filename);
+	const char * source = this->getShader(this->filename.c_str());
 
 	int shader = glCreateShader(this->type);
 
@@ -70,7 +73,12 @@ GLuint Shader::id() {
 	return this->compiledId;
 }
 
+string Shader::name() {
+	return filename;
+}
+
 const char * Shader::getShader(const char * filename) {
+	cout << "Loading [" << filename << "] from disk... ";
 	FILE* file = fopen(filename, "r");
 	if (!file) {
 		cerr << "couldn't open file " << filename << endl;
@@ -101,6 +109,7 @@ const char * Shader::getShader(const char * filename) {
 	fread(text, 1, size, file);
 
 	fclose(file);
+	cout << "Done." << endl;
 	return text;
 }
 

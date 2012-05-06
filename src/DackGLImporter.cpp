@@ -24,12 +24,14 @@ int toi(string s) {
 	return atoi(s.data());
 }
 
-DackGLImporter::DackGLImporter() {
+DackGLImporter::DackGLImporter(string baseDirectory) {
+	this->baseDirectory = baseDirectory;
 }
 
 mesh DackGLImporter::import(string filename) {
 	ifstream file;
-	file.open(filename.data(), fstream::in);
+	string path = baseDirectory + "/" + filename;
+	file.open(path.data(), fstream::in);
 	if (!file) {
 		char * err = new char[200];
 		sprintf(err, "Couldn't open file '%s'", filename.data());
@@ -66,7 +68,7 @@ mesh DackGLImporter::import(string filename) {
 	}
 	cout << "Imported " << filename.data() << endl;
 	cout << " num vertices/normals: " << this->model.numVertices;
-	cout << " num faces: " << this->model.numFaces;
+	cout << " num faces: " << this->model.numFaces << endl << endl;
 	return this->model;
 }
 

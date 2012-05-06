@@ -6,8 +6,8 @@ def write_some_data(context, filepath):
     
     f = open(filepath, 'w')
 
-    for mesh in bpy.data.meshes:
-        print_mesh(f, mesh)
+    for mesh in bpy.context.selected_objects:
+        print_mesh(f, mesh.data)
         
     for armature in bpy.data.armatures:
         print_armatures(f, armature)

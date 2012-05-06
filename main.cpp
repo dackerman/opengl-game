@@ -13,17 +13,13 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdexcept>
 #include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <sstream>
 
 #include "Shader.hpp"
 #include "ShaderProgram.hpp"
+#include "DackGLImporter.hpp"
+#include "structs.hpp"
 
 using namespace std;
 
@@ -49,143 +45,6 @@ void openWindow(int width, int height) {
 	}
 }
 
-vector<string> &split(const string &s, char delim, vector<string> &elems) {
-    stringstream ss(s);
-    string item;
-    while(getline(ss, item, delim)) {
-        elems.push_back(item);
-    }
-    return elems;
-}
-
-vector<string> split(const string &s, char delim) {
-    vector<string> elems;
-    return split(s, delim, elems);
-}
-
-struct vertexnormal {
-	float vx;
-	float vy;
-	float vz;
-	float nx;
-	float ny;
-	float nz;
-};
-
-typedef struct {
-	glm::vec3 direction;
-	glm::vec3 halfplane;
-	glm::vec4 ambient_color;
-	glm::vec4 diffuse_color;
-	glm::vec4 specular_color;
-} directional_light;
-
-struct material_props {
-	glm::vec4 ambient_color;
-	glm::vec4 diffuse_color;
-	glm::vec4 specular_color;
-	float specular_exponent;
-};
-
-typedef struct {
-	string name;
-	glm::mat4x3 inverseBindPose;
-	int8_t parent;
-} bone;
-
-typedef struct {
-	vector<vertexnormal> vertices;
-	vector<float> normals;
-	vector<unsigned int> faces;
-
-	vector<bone> bones;
-
-	material_props material;
-} mesh;
-
-void readDackFile(const char* filename, mesh * outmesh) {
-	ifstream file;
-	file.open(filename, fstream::in);
-	if (!file) {
-		throw runtime_error("Couldn't open file!");
-	}
-
-	string lineread;
-	while (getline(file, lineread)) {
-		vector<string> sline = split(lineread, ' ');
-		bone b;
-		b.name = sline[0];
-		glm::mat3 rest;
-		for (int i = 0; i < 3; i++) {
-			for (int j = 0; j < 3; j++) {
-				rest[i][j] = atof(sline[i * 3 + j + 1].data());
-			}
-		}
-		//b.inverseBindPose = rest;
-		outmesh->bones.push_back(b);
-	}
-}
-
-void readObjFile(const char* filename, mesh * outmesh) {
-	ifstream file;
-	file.open(filename, fstream::in);
-	if (!file) {
-		throw runtime_error("Couldn't open file!");
-	}
-
-	string lineread;
-	while (getline(file, lineread)) {
-		vector<string> sline = split(lineread, ' ');
-		if ("vn" == sline[0]) {
-			float x = atof(sline[1].c_str());
-			float y = atof(sline[2].c_str());
-			float z = atof(sline[3].c_str());
-			outmesh->normals.push_back(x);
-			outmesh->normals.push_back(y);
-			outmesh->normals.push_back(z);
-		} else if ("v" == sline[0]) {
-			float x = atof(sline[1].c_str());
-			float y = atof(sline[2].c_str());
-			float z = atof(sline[3].c_str());
-			struct vertexnormal vn = {x, y, z, 0.f, 0.f, 0.f};
-			outmesh->vertices.push_back(vn);
-		} else if ("f" == sline[0]) {
-			vector<string> sv1 = split(sline[1], '/');
-			vector<string> sv2 = split(sline[2], '/');
-			vector<string> sv3 = split(sline[3], '/');
-
-			int v1 = atoi(sv1[0].c_str()) - 1;
-			int v2 = atoi(sv2[0].c_str()) - 1;
-			int v3 = atoi(sv3[0].c_str()) - 1;
-
-			int vn1 = atoi(sv1[2].c_str()) - 1;
-			int vn2 = atoi(sv2[2].c_str()) - 1;
-			int vn3 = atoi(sv3[2].c_str()) - 1;
-
-			outmesh->vertices[v1].nx = outmesh->normals[vn1 * 3];
-			outmesh->vertices[v1].ny = outmesh->normals[vn1 * 3 + 1];
-			outmesh->vertices[v1].nz = outmesh->normals[vn1 * 3 + 2];
-
-			outmesh->vertices[v2].nx = outmesh->normals[vn2 * 3];
-			outmesh->vertices[v2].ny = outmesh->normals[vn2 * 3 + 1];
-			outmesh->vertices[v2].nz = outmesh->normals[vn2 * 3 + 2];
-
-			outmesh->vertices[v3].nx = outmesh->normals[vn3 * 3];
-			outmesh->vertices[v3].ny = outmesh->normals[vn3 * 3 + 1];
-			outmesh->vertices[v3].nz = outmesh->normals[vn3 * 3 + 2];
-
-			outmesh->faces.push_back(v1);
-			outmesh->faces.push_back(v2);
-			outmesh->faces.push_back(v3);
-		}
-	}
-	file.close();
-	cout << "Loaded file " << filename << endl;
-	cout << "    vertices: " << outmesh->vertices.size() << endl;
-	cout << "    normals:  " << outmesh->normals.size() << endl;
-	cout << "    faces:    " << outmesh->faces.size() << endl;
-}
-
 void renderMain(mesh * renderMesh) {
 
 	directional_light light;
@@ -205,21 +64,21 @@ void renderMain(mesh * renderMesh) {
 	GLuint pointsVBO;
 	glGenBuffers(1, &pointsVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, pointsVBO);
-	glBufferData(GL_ARRAY_BUFFER, renderMesh->vertices.size() * sizeof(vertexnormal), renderMesh->vertices.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, renderMesh->numVertices * sizeof(vertexnormal), renderMesh->vertices, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertexnormal), 0);
 	glEnableVertexAttribArray(0);
 
 	GLuint normalsVBO;
 	glGenBuffers(1, &normalsVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, normalsVBO);
-	glBufferData(GL_ARRAY_BUFFER, renderMesh->vertices.size() * sizeof(vertexnormal), renderMesh->vertices.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, renderMesh->numVertices * sizeof(vertexnormal), renderMesh->vertices, GL_STATIC_DRAW);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_TRUE, sizeof(vertexnormal), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
 
 	GLuint indicesVBO;
 	glGenBuffers(1, &indicesVBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, renderMesh->faces.size() * sizeof(int), renderMesh->faces.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, renderMesh->numFaces * sizeof(int), renderMesh->faces, GL_STATIC_DRAW);
 
 	// Vertex Buffer Objects
 
@@ -271,7 +130,7 @@ void renderMain(mesh * renderMesh) {
 		program->setVector("light.diffuse_color", light.diffuse_color);
 		program->setVector("light.specular_color", light.specular_color);
 
-		glDrawElements(GL_TRIANGLES, renderMesh->faces.size(), GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, renderMesh->numFaces, GL_UNSIGNED_INT, 0);
 
 		glfwSwapBuffers();
 
@@ -316,16 +175,8 @@ void printMatrix(glm::mat4x3 matrix) {
 }
 
 int main(int argc, char* argv[]) {
-	mesh mymesh;
-	readObjFile("../assets/ragdoll.obj", &mymesh);
-	readDackFile("../assets/ragdoll_bones.dack", &mymesh);
-
-	for (unsigned int i = 0; i < mymesh.bones.size(); i++) {
-		bone b = mymesh.bones[i];
-		cout << "bone: " << b.name << endl;
-		printMatrix(b.inverseBindPose);
-		cout << endl;
-	}
+	DackGLImporter * importer = new DackGLImporter();
+	mesh mymesh = importer->import("../assets/ragdoll.dack");
 
 	mymesh.material.ambient_color = glm::vec4(0.2f);
 	mymesh.material.diffuse_color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);

@@ -4,19 +4,22 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
+../DackGLImporter.cpp \
+../Shader.cpp \
 ../ShaderProgram.cpp \
-../main.cpp \
-../shader.cpp 
+../main.cpp 
 
 OBJS += \
+./DackGLImporter.o \
+./Shader.o \
 ./ShaderProgram.o \
-./main.o \
-./shader.o 
+./main.o 
 
 CPP_DEPS += \
+./DackGLImporter.d \
+./Shader.d \
 ./ShaderProgram.d \
-./main.d \
-./shader.d 
+./main.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

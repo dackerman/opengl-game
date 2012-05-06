@@ -18,11 +18,11 @@ class DackGLImporter {
 
 public:
 	DackGLImporter(string baseDirectory);
-	mesh import(string filename);
+	mesh * import(string filename);
 
 private:
 	string baseDirectory;
-	mesh model;
+	mesh * model;
 
 	enum Mode { VERTEX, FACE, VERTEX_GROUP, BONE, UNKNOWN };
 

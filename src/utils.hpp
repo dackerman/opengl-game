@@ -16,8 +16,6 @@
 #include <stdexcept>
 #include <glm/glm.hpp>
 
-#include "structs.hpp"
-
 using namespace std;
 
 namespace utils {

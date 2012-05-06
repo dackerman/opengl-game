@@ -178,18 +178,18 @@ void printMatrix(glm::mat4x3 matrix) {
 
 int main(int argc, char* argv[]) {
 	DackGLImporter * importer = new DackGLImporter("../assets");
-	mesh mymesh = importer->import("ragdoll.dack");
+	mesh * mymesh = importer->import("ragdoll.dack");
 
-	mymesh.material.ambient_color = glm::vec4(0.2f);
-	mymesh.material.diffuse_color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-	mymesh.material.specular_color = glm::vec4(1.0f);
-	mymesh.material.specular_exponent = 2.0f;
+	mymesh->material.ambient_color = glm::vec4(0.2f);
+	mymesh->material.diffuse_color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+	mymesh->material.specular_color = glm::vec4(1.0f);
+	mymesh->material.specular_exponent = 2.0f;
 
 	openWindow(640, 480);
 
 	loaders::Shaders * shaders = new loaders::Shaders("../assets/shaders");
 	ShaderProgram * program = shaders->getShader("lighted.vert", "simple.frag");
 
-	renderMain(&mymesh, program);
+	renderMain(mymesh, program);
 	return 0;
 }

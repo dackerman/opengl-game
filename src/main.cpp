@@ -16,8 +16,8 @@
 #include <stdexcept>
 #include <iostream>
 
-#include "Shader.hpp"
-#include "ShaderProgram.hpp"
+#include "shader/Shader.hpp"
+#include "shader/ShaderProgram.hpp"
 #include "DackGLImporter.hpp"
 #include "structs.hpp"
 

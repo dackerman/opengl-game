@@ -8,9 +8,8 @@
 #ifndef SHADERPROGRAM_HPP_
 #define SHADERPROGRAM_HPP_
 
-#include "Shader.hpp"
-
 #include <glm/glm.hpp>
+#include "Shader.hpp"
 
 class ShaderProgram {
 public:

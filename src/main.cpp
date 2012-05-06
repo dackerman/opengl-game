@@ -16,11 +16,11 @@
 #include <stdexcept>
 #include <iostream>
 
+#include "structs.hpp"
 #include "shader/Shader.hpp"
 #include "shader/ShaderProgram.hpp"
 #include "shader/Shaders.hpp"
 #include "DackGLImporter.hpp"
-#include "structs.hpp"
 
 using namespace std;
 using namespace dackgl;
